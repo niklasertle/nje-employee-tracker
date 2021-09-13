@@ -101,7 +101,6 @@ function viewCalls(res) {
         })
     } else if (res.userChoice === "View all roles") {
         // Returns all roles with department associated with and IDs
-        //TODO: RETURN dapartments instead of id#
         db.query('SELECT roles.id, roles.title, roles.salary, department.department_name FROM roles, department WHERE department.id = roles.department_id ORDER BY roles.id ASC', (err, data) => {
             if (err) throw err
             console.table(data)
@@ -117,7 +116,7 @@ function viewCalls(res) {
     } else if (res.userChoice === "View all employees by manager") {
         viewEmpByManager()
     } else if (res.userChoice === "View all employees by department") {
-        
+        viewEmpByDepartment()
     } else if (res.userChoice === "View total salary of a department") {
         
     }
@@ -125,8 +124,10 @@ function viewCalls(res) {
 
 // Gets all employees from a specific manager
 function viewEmpByManager() {
+  // Query to get all employees who do not have a manager
     db.query("SELECT employee.id, employee.first_name ,employee.last_name FROM employee WHERE employee.manager_id IS NULL", (err, data) => {
         if (err) throw err
+        // Pushes each name of the employee to an array to prompt the user to see which manager they want to get the employees back for
         let mngrArry = [];
         data.forEach(element => mngrArry.push(`${element.first_name} ${element.last_name}`))
         inquirer.prompt({
@@ -135,6 +136,7 @@ function viewEmpByManager() {
             choices: mngrArry,
             name: "manager"
         }).then((res) => {
+            // Checks the selected manager against the data and sets the finds the selected managers id to make another query
             let managerId
 
             data.forEach(element => {
@@ -143,10 +145,57 @@ function viewEmpByManager() {
                 }
             })
 
+            // Gets all the employees based on the id that is passed to it
             db.query('SELECT * FROM employee WHERE manager_id = ?', managerId, (err, data) => {
                 if (err) throw err
                 console.table(data)
                 init()
+            })
+        })
+    })
+};
+
+// Gets all employees based on the users selected department
+function viewEmpByDepartment() {
+    // Gets all departments to prompt the user 
+    db.query('SELECT * FROM department', (err, data) => {
+        if (err) throw err
+        // Uses the data to set up an array to prompt about the department the user wants to select
+        let depArry = [];
+        data.forEach(element => depArry.push(`${element.department_name}`))
+        inquirer.prompt({
+            type: "list",
+            message: "Which department do you want employees for?",
+            choices: depArry,
+            name: "department"
+        }).then(res => {
+          // Gets the delected departments ID to make another query to the database with the number
+            let depId;
+
+            data.forEach(element => {
+                if (res.department === element.department_name) {
+                    depId = element.id
+                }
+            })
+
+            db.query('SELECT id FROM roles WHERE department_id = ?', depId, (err, data) => {
+              // Uses the id of every role associated with a department and uses a promise to get back the employees that work within that role
+              // Returns an array to be displayed in a table
+              let employees = new Promise((resolve, reject) => {
+                let empArry = [];
+            
+                data.forEach((element, index) => {
+                  db.query('SELECT id, first_name, last_name FROM employee WHERE role_id = ?', element.id, (err, results) => {
+                    results.forEach(element => empArry.push({"id": element.id, "First Name": element.first_name, "Last Name": element.last_name}))
+                    if (index === data.length -1) resolve(empArry);
+                  })
+                })
+              })
+
+              employees.then((data) => {
+                console.table(data)
+                init()
+              })
             })
         })
     })
