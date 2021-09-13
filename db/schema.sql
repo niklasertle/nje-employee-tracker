@@ -3,12 +3,14 @@ CREATE DATABASE IF NOT EXISTS employee_db;
 
 USE employee_db;
 
+DROP TABLE IF EXISTS department;
 CREATE TABLE department (
     id INT NOT NULL AUTO_INCREMENT,
     department_name VARCHAR(30) NOT NULL,
     PRIMARY KEY (id)
 );
 
+DROP TABLE IF EXISTS roles;
 CREATE TABLE roles (
     id INT NOT NULL AUTO_INCREMENT,
     title VARCHAR(30) NOT NULL,
@@ -18,6 +20,7 @@ CREATE TABLE roles (
     FOREIGN KEY (department_id) REFERENCES department(id) ON DELETE SET NULL
 );
 
+DROP TABLE IF EXISTS employee;
 CREATE TABLE employee (
     id INT NOT NULL AUTO_INCREMENT,
     first_name VARCHAR(30) NOT NULL,
