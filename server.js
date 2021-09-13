@@ -323,8 +323,88 @@ function addRole() {
       });
   });
 }
+
 // Adds an employee to the table
-function addEmployee() {}
+function addEmployee() {
+  // Array to save data from different database queries
+  let roleArry;
+  let mngrArry;
+
+  // Gets all roles and ids
+  db.query('SELECT * FROM roles', (err, data) => {
+    roleArry = data
+  })
+
+  // Get all employees with no manager as they should be the managers
+  db.query('SELECT * FROM employee WHERE manager_id IS NULL', (err, data) => {
+    mngrArry = data
+
+    // Creates prompt arrays using the data from the previous queries
+    let rolePrompt = [];
+    let mngrPrompt = [];
+
+    roleArry.forEach(element => rolePrompt.push(element.title))
+    mngrArry.forEach(element => mngrPrompt.push(`${element.first_name} ${element.last_name}`))
+    mngrPrompt.push('None')
+
+    // Prompts the user for information of the new employee
+    inquirer
+      .prompt(
+        [{
+          type: "list",
+          message: "What is the employees role?",
+          choices: rolePrompt,
+          name: "role",
+        },
+        {
+          type: "input",
+          message: "What is the first name of the employee",
+          name: "newFirst",
+        },
+        {
+          type: "input",
+          message: "What is the last name of the employee?",
+          name: "newLast",
+        },
+        {
+          type: "list",
+          message: "Who is the employees manager?",
+          choices: mngrPrompt,
+          name: "manager",
+        }]
+    ).then(res => {
+      // Sets up variables to save the id
+      let roleId;
+      let mngrId;
+
+      //Gets the id for the role that the user selected
+      roleArry.forEach(element => {
+        if (element.title === res.role) {
+          roleId = element.id
+        }
+      })
+
+      // Gets the id for the manager, if none was selected sets it equal to null
+      mngrArry.forEach(element => {
+        if (res.manager === "None") {
+          mngrId = null
+        } else if (res.manager === `${element.first_name} ${element.last_name}`) {
+          mngrId = element.id;
+        }
+      })
+
+      // New employee to pass into the query
+      let newEmployee = [res.newFirst, res.newLast, roleId, mngrId]
+
+      // Adds an employee to the employee table in the database
+      db.query('INSERT INTO employee (first_name, last_name, role_id, manager_id) VALUES (?, ?, ?, ?)', newEmployee, (err, data) => {
+        if (err) throw err
+        console.log('Successfully add a new employee')
+        init()
+      })
+    })
+  }) 
+}
 
 // Calls initializer functions
 init();
