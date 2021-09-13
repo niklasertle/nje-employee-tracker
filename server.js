@@ -3,12 +3,6 @@ const mysql2 = require("mysql2");
 const cTable = require('console.table');
 require("dotenv").config();
 
-// Helper functions
-const viewFunc = require('./routes/view');
-const addFunc = require('./routes/add');
-const updateFunc = require('./routes/update');
-const deleteFunc = require('./routes/delete');
-
 // Creates a database connection
 const db = mysql2.createConnection(
   process.env.JAWSDB_URL || {
@@ -21,7 +15,7 @@ const db = mysql2.createConnection(
 );
 
 // All questions in an array to be used when prompting the user
-let initialOptions = ["View", "Add", "Update", "Delete"];
+let initialOptions = ["View", "Add", "Update", "Delete", "Cancel"];
 let viewOptions = [
   "View all departments",
   "View all roles",
@@ -53,7 +47,7 @@ function init() {
             name: "userChoice",
           })
           .then((res) => {
-            console.log(res);
+            viewCalls(res)
           });
       } else if (res.userChoice === "Add") {
         inquirer
@@ -77,7 +71,7 @@ function init() {
           .then((res) => {
             console.log(res);
           });
-      } else {
+      } else if (res.userChoice === 'Delete'){
         inquirer
           .prompt({
             type: "list",
@@ -88,9 +82,41 @@ function init() {
           .then((res) => {
             console.log(res);
           });
+      } else {
+          console.log("Thanks for using the employee tracker!");
       }
     });
-}
+};
+
+// Function to handle when the user selects a view option
+function viewCalls(res) {
+    if (res.userChoice === "View all departments") {
+        db.query('SELECT * FROM department', (err, data) => {
+            if (err) throw err
+            console.table(data)
+            init()
+        })
+    } else if (res.userChoice === "View all roles") {
+        //TODO: RETURN dapartments instead of id#
+        db.query('SELECT * FROM roles', (err, data) => {
+            if (err) throw err
+            console.table(data)
+            init()
+        })
+    } else if (res.userChoice === "View all employees") {
+        //TODO: RETURN names for roles and managers instead of a id#
+        db.query('SELECT * FROM employee', (err, data) => {
+            console.table(data)
+        })
+    } else if (res.userChoice === "View all employees by manager") {
+        
+    } else if (res.userChoice === "View all employees by department") {
+        
+    } else if (res.userChoice === "View total salary of a department") {
+        
+    }
+
+};
 
 // Calls initializer functions
 init();
