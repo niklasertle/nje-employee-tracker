@@ -437,6 +437,7 @@ function addEmployee() {
 // ============================== Update Option Functions ==============================
 // Updates and employees role
 function updateRole() {
+  // Gets all from the employee table and pushes the first name and last name of each employee to an array to be used to prompt the user
   db.query('SELECT * FROM employee', (err, data) => {
     if (err) throw err;
 
@@ -482,7 +483,7 @@ function updateRole() {
           // Updates the role_id in the employee table where id is equal to user choice to the users role choice
           db.query('UPDATE employee SET role_id = ? WHERE id = ?', [roleId, empId], (err, data) => {
             if (err) throw err;
-            console.log("Successfully updated the role!");
+            console.log("Successfully updated  employees role!");
             init();
           })
         })
@@ -493,7 +494,59 @@ function updateRole() {
 
 // Updates the employees manager
 function updateManager() {
+  // Gets all employees from the table and pushes their name to an array to be used to prompt the user
+  db.query('SELECT * FROM employee', (err, data) => {
+    if (err) throw err;
 
+    let empArry = [];
+    data.forEach(element => empArry.push(`${element.first_name} ${element.last_name}`))
+
+    inquirer.prompt({
+      type: "list",
+      message: "Which employee would you like to delete?",
+      choices: empArry,
+      name: "employeeChoice"
+    }).then(res => {
+      // Sets empId equal to the ID of the users choice
+      let empId;
+
+      data.forEach(element => {
+        if (res.employeeChoice === `${element.first_name} ${element.last_name}`) {
+          empId = element.id
+        }
+      });
+
+      // Gets all managers to see which manager the employee should get
+      db.query('SELECT * FROM employee WHERE manager_id IS NULL', (err, data) => {
+        if (err) throw err;
+    
+        let mngrArry = [];
+        data.forEach(element => mngrArry.push(`${element.first_name} ${element.last_name}`))
+        inquirer.prompt({
+          type: "list",
+          message: "Which manager should this employee have?",
+          choices: mngrArry,
+          name: "managerChoice"
+        }).then((res) => {
+          // Compares the user selected manager to the data, and sets the ID of the data equal to mngrId 
+          let mngrId;
+    
+          data.forEach((element) => {
+            if (res.managerChoice === `${element.first_name} ${element.last_name}`) {
+              mngrId = element.id;
+            }
+          });
+    
+          // Updates the manager_id in the employee table where id is equal to user choice to the users manager choice
+          db.query('UPDATE employee SET manager_id = ? WHERE id = ?', [mngrId, empId], (err, data) => {
+            if (err) throw err;
+            console.log("Successfully updated the employees manager!");
+            init();
+          })
+        })
+      })
+    })
+  })
 }
 
 // ============================== Delete Option Functions ==============================
