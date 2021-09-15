@@ -176,7 +176,7 @@ function viewEmpByManager() {
 
           // Gets all the employees based on the id that is passed to it
           db.query(
-            "SELECT * FROM employee WHERE manager_id = ?",
+            "SELECT id, first_name, last_name FROM employee WHERE manager_id = ?",
             managerId,
             (err, data) => {
               if (err) throw err;
