@@ -7,9 +7,9 @@ require("dotenv").config();
 const db = mysql2.createConnection(
   process.env.JAWSDB_URL || {
     host: "localhost",
-    user: "root",
-    password: process.env.sqlPass,
-    database: "employee_db",
+    user: process.env.DB_USER,
+    password: process.env.DB_PASS,
+    database: process.env.DB_NAME,
   },
   console.log(`Connected to the employee database.`)
 );
@@ -73,7 +73,13 @@ function init() {
             name: "userChoice",
           })
           .then((res) => {
-            console.log(res);
+            if (res.userChoice === "Update an employee role") {
+              updateRole()
+            } else if (res.userChoice === "Update an employee manager") {
+              updateManager()
+            } else {
+              init()
+            }
           });
       } else if (res.userChoice === "Delete") {
         inquirer
@@ -84,7 +90,15 @@ function init() {
             name: "userChoice",
           })
           .then((res) => {
-            console.log(res);
+            if (res.userChoice === "Delete a department") {
+              deleteDepartment()
+            } else if (res.userChoice === "Delete a role") {
+              deleteRole()
+            } else if (res.userChoice === "Delete an employee") {
+              deleteEmployee()
+            } else {
+              init()
+            }
           });
       } else {
         console.log("Thanks for using the employee tracker!");
@@ -238,6 +252,7 @@ function viewEmpByDepartment() {
 }
 
 // ============================== Add Option Functions ==============================
+// Function to handle when the user selects an option for the add
 function addFunc(res) {
   if (res.userChoice === "Add a department") {
     addDepartment();
@@ -285,8 +300,8 @@ function addRole() {
     let depArry = [];
     data.forEach((element) => depArry.push(`${element.department_name}`));
     inquirer
-      .prompt(
-        [{
+      .prompt([
+        {
           type: "list",
           message: "Which department is the role for?",
           choices: depArry,
@@ -301,8 +316,8 @@ function addRole() {
           type: "input",
           message: "What is the salary of the role?",
           name: "roleSalary",
-        }]
-      )
+        },
+      ])
       .then((res) => {
         // Uses the prompt to set up a new array and creates a query to intert into the roles table
         let depId;
@@ -311,15 +326,19 @@ function addRole() {
         data.forEach((element) => {
           if (res.department === element.department_name) {
             depId = element.id;
-            newRole.push(depId)
+            newRole.push(depId);
           }
         });
 
-        db.query('INSERT INTO roles(title, salary, department_id) VALUES (?, ?, ?)', newRole, (err, data) => {
-          if (err) throw err
-          console.log('Successfully added a new role!');
-          init()
-        })
+        db.query(
+          "INSERT INTO roles(title, salary, department_id) VALUES (?, ?, ?)",
+          newRole,
+          (err, data) => {
+            if (err) throw err;
+            console.log("Successfully added a new role!");
+            init();
+          }
+        );
       });
   });
 }
@@ -331,26 +350,28 @@ function addEmployee() {
   let mngrArry;
 
   // Gets all roles and ids
-  db.query('SELECT * FROM roles', (err, data) => {
-    roleArry = data
-  })
+  db.query("SELECT * FROM roles", (err, data) => {
+    roleArry = data;
+  });
 
   // Get all employees with no manager as they should be the managers
-  db.query('SELECT * FROM employee WHERE manager_id IS NULL', (err, data) => {
-    mngrArry = data
+  db.query("SELECT * FROM employee WHERE manager_id IS NULL", (err, data) => {
+    mngrArry = data;
 
     // Creates prompt arrays using the data from the previous queries
     let rolePrompt = [];
     let mngrPrompt = [];
 
-    roleArry.forEach(element => rolePrompt.push(element.title))
-    mngrArry.forEach(element => mngrPrompt.push(`${element.first_name} ${element.last_name}`))
-    mngrPrompt.push('None')
+    roleArry.forEach((element) => rolePrompt.push(element.title));
+    mngrArry.forEach((element) =>
+      mngrPrompt.push(`${element.first_name} ${element.last_name}`)
+    );
+    mngrPrompt.push("None");
 
     // Prompts the user for information of the new employee
     inquirer
-      .prompt(
-        [{
+      .prompt([
+        {
           type: "list",
           message: "What is the employees role?",
           choices: rolePrompt,
@@ -371,39 +392,210 @@ function addEmployee() {
           message: "Who is the employees manager?",
           choices: mngrPrompt,
           name: "manager",
-        }]
-    ).then(res => {
-      // Sets up variables to save the id
-      let roleId;
-      let mngrId;
+        },
+      ])
+      .then((res) => {
+        // Sets up variables to save the id
+        let roleId;
+        let mngrId;
 
-      //Gets the id for the role that the user selected
-      roleArry.forEach(element => {
-        if (element.title === res.role) {
-          roleId = element.id
+        //Gets the id for the role that the user selected
+        roleArry.forEach((element) => {
+          if (element.title === res.role) {
+            roleId = element.id;
+          }
+        });
+
+        // Gets the id for the manager, if none was selected sets it equal to null
+        mngrArry.forEach((element) => {
+          if (res.manager === "None") {
+            mngrId = null;
+          } else if (
+            res.manager === `${element.first_name} ${element.last_name}`
+          ) {
+            mngrId = element.id;
+          }
+        });
+
+        // New employee to pass into the query
+        let newEmployee = [res.newFirst, res.newLast, roleId, mngrId];
+
+        // Adds an employee to the employee table in the database
+        db.query(
+          "INSERT INTO employee (first_name, last_name, role_id, manager_id) VALUES (?, ?, ?, ?)",
+          newEmployee,
+          (err, data) => {
+            if (err) throw err;
+            console.log("Successfully add a new employee");
+            init();
+          }
+        );
+      });
+  });
+}
+
+// ============================== Update Option Functions ==============================
+// Updates and employees role
+function updateRole() {
+  db.query('SELECT * FROM employee', (err, data) => {
+    if (err) throw err;
+
+    let empArry = [];
+    data.forEach(element => empArry.push(`${element.first_name} ${element.last_name}`))
+
+    inquirer.prompt({
+      type: "list",
+      message: "Which employee would you like to delete?",
+      choices: empArry,
+      name: "employeeChoice"
+    }).then(res => {
+      // Sets empId equal to the ID of the users choice
+      let empId;
+
+      data.forEach(element => {
+        if (res.employeeChoice === `${element.first_name} ${element.last_name}`) {
+          empId = element.id
         }
-      })
+      });
 
-      // Gets the id for the manager, if none was selected sets it equal to null
-      mngrArry.forEach(element => {
-        if (res.manager === "None") {
-          mngrId = null
-        } else if (res.manager === `${element.first_name} ${element.last_name}`) {
-          mngrId = element.id;
-        }
-      })
-
-      // New employee to pass into the query
-      let newEmployee = [res.newFirst, res.newLast, roleId, mngrId]
-
-      // Adds an employee to the employee table in the database
-      db.query('INSERT INTO employee (first_name, last_name, role_id, manager_id) VALUES (?, ?, ?, ?)', newEmployee, (err, data) => {
-        if (err) throw err
-        console.log('Successfully add a new employee')
-        init()
+      // Gets all roles to see which role should be used to update 
+      db.query('SELECT * FROM roles', (err, data) => {
+        if (err) throw err;
+    
+        let roleArry = [];
+        data.forEach(element => roleArry.push(`${element.title}`))
+        inquirer.prompt({
+          type: "list",
+          message: "Which role should the employee have?",
+          choices: roleArry,
+          name: "roleChoice"
+        }).then((res) => {
+          // Compares the user selected role to the data, and sets the ID of the data equal to roleId 
+          let roleId;
+    
+          data.forEach((element) => {
+            if (res.roleChoice === element.title) {
+              roleId = element.id;
+            }
+          });
+    
+          // Updates the role_id in the employee table where id is equal to user choice to the users role choice
+          db.query('UPDATE employee SET role_id = ? WHERE id = ?', [roleId, empId], (err, data) => {
+            if (err) throw err;
+            console.log("Successfully updated the role!");
+            init();
+          })
+        })
       })
     })
-  }) 
+  })
+};
+
+// Updates the employees manager
+function updateManager() {
+
+}
+
+// ============================== Delete Option Functions ==============================
+// Deletes the users selected department
+function deleteDepartment() {
+  db.query("SELECT * FROM department", (err, data) => {
+    if (err) throw err;
+    // Uses the data to set up an array to prompt about the department the user wants to select
+    let depArry = [];
+    data.forEach((element) => depArry.push(`${element.department_name}`));
+    inquirer
+      .prompt({
+        type: "list",
+        message: "Which department do you want to delete?",
+        choices: depArry,
+        name: "department",
+      })
+      .then((res) => {
+        // Uses the selected department and compares it to the names from the data array allowing us to get the id
+        let depId;
+
+        data.forEach((element) => {
+          if (res.department === element.department_name) {
+            depId = element.id;
+          }
+        });
+
+        // Deleted the department where the ID matches the users ID 
+        db.query("DELETE FROM department WHERE id = ?", depId, (err, data) => {
+          if (err) throw err;
+          console.log("Successfully deleted the department!");
+          init();
+        });
+      });
+  });
+};
+
+// Deletes a role from the database based on user selection
+function deleteRole() {
+  // Gets all the roles from the database puts the titles into and array to be used to prompt the user
+  db.query('SELECT * FROM roles', (err, data) => {
+    if (err) throw err;
+
+    let roleArry = [];
+    data.forEach(element => roleArry.push(`${element.title}`))
+    inquirer.prompt({
+      type: "list",
+      message: "Which role would you like to delete?",
+      choices: roleArry,
+      name: "roleChoice"
+    }).then((res) => {
+      // Compares the user selected role to the data, and sets the ID of the data equal to roleId 
+      let roleId;
+
+      data.forEach((element) => {
+        if (res.roleChoice === element.title) {
+          roleId = element.id;
+        }
+      });
+
+      // Deletes from role table where the ID is equal to the user choice
+      db.query('DELETE FROM roles WHERE id = ?', roleId, (err, data) => {
+        if (err) throw err;
+        console.log("Successfully deleted the role!");
+        init();
+      })
+    })
+  })
+}
+
+// Deletes an employee from the database based on user selection
+function deleteEmployee() {
+  // Selects all from the employee table and puts the names into an array to prompt the user
+  db.query('SELECT * FROM employee', (err, data) => {
+    if (err) throw err;
+
+    let empArry = [];
+    data.forEach(element => empArry.push(`${element.first_name} ${element.last_name}`))
+
+    inquirer.prompt({
+      type: "list",
+      message: "Which employee would you like to delete?",
+      choices: empArry,
+      name: "employeeChoice"
+    }).then(res => {
+      // Sets empId equal to the ID of the users choice
+      let empId;
+
+      data.forEach(element => {
+        if (res.employeeChoice === `${element.first_name} ${element.last_name}`) {
+          empId = element.id
+        }
+      });
+
+      // Deletes from the employee table where the ID is equal to the employee choice
+      db.query('DELETE FROM employee WHERE id = ?', empId, (err, data) => {
+        if (err) throw err;
+        console.log('Employee successfully deleted!');
+        init();
+      })
+    })
+  })
 }
 
 // Calls initializer functions
