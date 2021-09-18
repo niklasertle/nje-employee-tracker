@@ -21,8 +21,7 @@ let viewOptions = [
   "View all roles",
   "View all employees",
   "View all employees by manager",
-  "View all employees by department",
-  // "View total salary of a department"
+  "View all employees by department"
 ];
 let addOptions = ["Add a department", "Add a role", "Add employee"];
 let updateOptions = ["Update an employee role", "Update an employee manager"];
